@@ -16,7 +16,7 @@
 """DQN agent implementation."""
 
 import copy
-from typing import Optional
+from typing import Optional, List, Dict
 
 from acme import datasets
 from acme import specs
@@ -31,6 +31,7 @@ import reverb
 import sonnet as snt
 import tensorflow as tf
 import trfl
+import numpy as np
 
 
 class DQN(agent.Agent):
@@ -58,7 +59,8 @@ class DQN(agent.Agent):
             epsilon: Optional[tf.Tensor] = None,
             learning_rate: float = 1e-3,
             discount: float = 0.99,
-            logger: loggers.Logger = None) -> None:
+            logger: loggers.Logger = None,
+            expert_data: List[Dict] = None) -> None:
         """Initialize the agent.
 
         Args:
@@ -98,10 +100,9 @@ class DQN(agent.Agent):
 
         # The adder is used to insert observations into replay.
         address = f'localhost:{self._server.port}'
-        adder = adders.NStepTransitionAdder(
-            client=reverb.Client(address),
-            n_step=n_step,
-            discount=discount)
+        adder = adders.NStepTransitionAdder(client=reverb.Client(address),
+                                            n_step=n_step,
+                                            discount=discount)
 
         # The dataset provides an interface to sample from replay.
         replay_client = reverb.TFClient(address)
@@ -109,6 +110,13 @@ class DQN(agent.Agent):
             server_address=address,
             batch_size=batch_size,
             prefetch_size=prefetch_size)
+
+        # Adding expert data to the replay memory:
+        if expert_data is not None:
+            for d in expert_data:
+                adder.add_first(d["first"])
+                for (action, next_ts) in d["mid"]:
+                    adder.add(np.int32(action), next_ts)
 
         # Use constant 0.05 epsilon greedy policy by default.
         if epsilon is None:

@@ -37,7 +37,7 @@ class MarioEnvironment(dm_env.Environment):
                  in_game_score_weight: float = 0.01,
                  movement_type: str = "simple",
                  world_and_level: Optional[Tuple[int, int]] = None,
-                 idle_frames_threshold: Optional[int] = 2000,
+                 idle_frames_threshold: Optional[int] = 1250,
     ) -> None:
         assert stack_mode in ("first_and_last", "all")
         self._stack_mode = stack_mode
@@ -70,18 +70,9 @@ class MarioEnvironment(dm_env.Environment):
         self._smb_env.reset()
         self._last_score = 0
         self._last_x = 40
-        self._idle_counter = 00
+        self._idle_counter = 0
         return dm_env.restart(self.step(0).observation)
 
-    # def _get_reward(self, info):
-    #     deltaT = info["clock"] - self._last_clock
-    #     x_diff = info["x_pos"] - self._last_x
-    #     score_diff = (info["score"] - self._last_score) * self._score_weight
-    #
-    #     x_reward = -2 if x_diff < 1 else 2
-    #     score_diff
-    #     if x_diff < 1:
-    #         x_reward =
     def _is_idle(self, info):
         if self._idle_frames_threshold is None:
             return False
@@ -153,8 +144,8 @@ class MarioEnvironment(dm_env.Environment):
 
         return img.astype(np.float32, copy=False)
 
-    def render(self):
-        self._smb_env.render()
+    def render(self, mode="human"):
+        return self._smb_env.render(mode)
 
     def plot_obs(self, obs):
         plt.imshow(obs, cmap="gray" if self._grayscale else None)

@@ -15,7 +15,10 @@ from utils.env_loop import EnvironmentLoop
 from utils.utils import restore_module
 import time
 import trfl
+from datetime import datetime
+import pickle
 
+import expert_demonstration
 from dqn.agent import DQN as DQNAgent
 
 
@@ -43,28 +46,34 @@ def make_env():
                             black_background=True,
                             in_game_score_weight=0.02,
                             movement_type="right_only",
-                            world_and_level=(1, 3),
-                            idle_frames_threshold=2500)
+                            world_and_level=(2, 1),
+                            idle_frames_threshold=800)
 
 
-def train(network=None):
+def train(network=None, expert_data_path=None):
     env = make_env()
     env_spec = acme.make_environment_spec(env)
 
     if network is None:
         network = make_dqn(env_spec.actions.num_values)
 
+    expert_data = None
+    if expert_data_path is not None:
+        with open(expert_data_path, "rb") as handle:
+            expert_data = pickle.load(handle)
+
     agent = DQNAgent(environment_spec=env_spec,
                      network=network,
                      batch_size=32,
-                     learning_rate=5e-5,
+                     learning_rate=1e-4,
                      logger=loggers.NoOpLogger(),
                      min_replay_size=2500,
-                     max_replay_size=int(2e5),
+                     max_replay_size=int(1e5),
                      target_update_period=2500,
-                     epsilon=tf.Variable(0.05),
+                     epsilon=tf.Variable(0.025),
                      n_step=10,
-                     discount=0.9)
+                     discount=0.9,
+                     expert_data=expert_data)
 
     loop = EnvironmentLoop(environment=env,
                            actor=agent,
@@ -72,7 +81,7 @@ def train(network=None):
     reward_history = loop.run(num_steps=int(1e6),
                               render=True,
                               checkpoint=True,
-                              checkpoint_freq=20)
+                              checkpoint_freq=10)
 
     avg_hist = [np.mean(reward_history[i:(i+50)])
                 for i in range(len(reward_history) - 50)]
@@ -84,6 +93,8 @@ def train(network=None):
 
 
 def eval_policy(policy, num_episodes, fps=0, epsilon_greedy=0.025):
+    # TODO: plot Q values
+    # TODO: Jacobian matrix (sensitiviy to the different regions of the input)
     policy = snt.Sequential([
         policy,
         lambda q: trfl.epsilon_greedy(q, epsilon=epsilon_greedy).sample(),
@@ -113,15 +124,30 @@ def eval_policy(policy, num_episodes, fps=0, epsilon_greedy=0.025):
         print(f"Episode reward: {episode_reward}")
 
 
+def collect_data_from_human():
+    data = expert_demonstration.human_play(make_env(), num_episodes=20)
+
+    date_and_time = datetime.today().strftime('%Y-%m-%d-%H-%M-%S')
+    save_path = f"./human_data/data_{date_and_time}.pkl"
+    with open(save_path, "wb") as handle:
+        pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    count = 0
+    for ep_data in data:
+        count = 1 + len(ep_data["mid"])
+    print(f"\nCollected data from {count} timesteps.\n")
+
+
 if __name__ == "__main__":
+    # collect_data_from_human()
+
     policy_network = make_dqn(make_env().action_spec().num_values)
     restore_module(base_module=policy_network,
-                   # save_path="checkpoints/best_policies/lv2/"
-                   #           "lv2_completed_avg10-r2307_avg50-r1941_cur-r2867")
-                   save_path="checkpoints/checkpoints_2021-03-24-21-51-59/episode480_avg10-r656_avg50-r629_cur-r896")
+                   save_path="checkpoints/"
+                             "checkpoints_2021-03-27-22-45-46/episode340_avg10-r1963_avg50-r1962_cur-r2849")
 
-    train(policy_network)
-    eval_policy(policy_network, num_episodes=9, fps=30, epsilon_greedy=0)
+    train(policy_network, expert_data_path=None)
+    eval_policy(policy_network, num_episodes=3, fps=30, epsilon_greedy=0)
 
     # env = make_env()
     # obs = env.reset().observation
