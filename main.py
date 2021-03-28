@@ -3,7 +3,6 @@ os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 
 import acme
 import tensorflow as tf
-# from acme.agents.tf import dqn
 import sonnet as snt
 from acme.tf.networks import duelling
 from acme.utils import loggers
@@ -20,6 +19,9 @@ import pickle
 
 import expert_demonstration
 from dqn.agent import DQN as DQNAgent
+from pathlib import Path
+import re
+import ray
 
 
 def make_dqn(num_actions: int):
@@ -46,8 +48,8 @@ def make_env():
                             black_background=True,
                             in_game_score_weight=0.02,
                             movement_type="right_only",
-                            world_and_level=(2, 1),
-                            idle_frames_threshold=800)
+                            world_and_level=(1, 3),
+                            idle_frames_threshold=1000)
 
 
 def train(network=None, expert_data_path=None):
@@ -61,13 +63,16 @@ def train(network=None, expert_data_path=None):
     if expert_data_path is not None:
         with open(expert_data_path, "rb") as handle:
             expert_data = pickle.load(handle)
+        num_timesteps = np.sum([1 + len(ep["mid"]) for ep in expert_data])
+        print(f"Using expert data from {expert_data_path}. "
+              f"Episodes: {len(expert_data)}. Timesteps: {num_timesteps}.")
 
     agent = DQNAgent(environment_spec=env_spec,
                      network=network,
                      batch_size=32,
                      learning_rate=1e-4,
                      logger=loggers.NoOpLogger(),
-                     min_replay_size=2500,
+                     min_replay_size=1000,
                      max_replay_size=int(1e5),
                      target_update_period=2500,
                      epsilon=tf.Variable(0.025),
@@ -78,7 +83,7 @@ def train(network=None, expert_data_path=None):
     loop = EnvironmentLoop(environment=env,
                            actor=agent,
                            module2save=network)
-    reward_history = loop.run(num_steps=int(1e6),
+    reward_history = loop.run(num_steps=int(1e5),
                               render=True,
                               checkpoint=True,
                               checkpoint_freq=10)
@@ -138,16 +143,61 @@ def collect_data_from_human():
     print(f"\nCollected data from {count} timesteps.\n")
 
 
+def find_best_policy(folder_path):
+    ray.init(ignore_reinit_error=True)
+
+    @ray.remote
+    def _eval_policy_ray(policy_path):
+        env = make_env()
+        policy = make_dqn(env.action_spec().num_values)
+        restore_module(base_module=policy, save_path=policy_path)
+
+        obs = env.reset().observation
+        policy_reward = 0
+        done = False
+        while not done:
+            q_values = policy(tf.expand_dims(obs, axis=0))[0]
+            action = tf.argmax(q_values)
+
+            timestep_obj = env.step(action)
+            obs = timestep_obj.observation
+
+            policy_reward += timestep_obj.reward
+            done = timestep_obj.last()
+
+        return policy_reward
+
+    # Getting files names:
+    files = []
+    for i, fn in enumerate(sorted(Path(folder_path).iterdir(),
+                                  key=os.path.getmtime)):
+        if i % 2 == 0:
+            files.append(re.search("^[^.]*", str(fn))[0])
+
+    # Searching:
+    futures = [_eval_policy_ray.remote(fn) for fn in files]
+    rewards = ray.get(futures)
+
+    best_policy_path = files[np.argmax(rewards)]
+    best_policy_reward = np.max(rewards)
+
+    print(f"Best policy found at: {best_policy_path}")
+    print(f"Best policy total reward: {best_policy_reward}")
+
+    return best_policy_path
+
+
 if __name__ == "__main__":
     # collect_data_from_human()
+    # save_path = find_best_policy("checkpoints/history/w1_lv3_checkpoints2")
+    save_path = "checkpoints/best_policies/w1_lv3/w1_lv3_completed_r3018"
 
     policy_network = make_dqn(make_env().action_spec().num_values)
-    restore_module(base_module=policy_network,
-                   save_path="checkpoints/"
-                             "checkpoints_2021-03-27-22-45-46/episode340_avg10-r1963_avg50-r1962_cur-r2849")
+    restore_module(base_module=policy_network, save_path=save_path)
+    print(f"\nUsing policy checkpoint from: {save_path}")
 
-    train(policy_network, expert_data_path=None)
-    eval_policy(policy_network, num_episodes=3, fps=30, epsilon_greedy=0)
+    # train(policy_network, expert_data_path=None)
+    eval_policy(policy_network, num_episodes=3, fps=60, epsilon_greedy=0)
 
     # env = make_env()
     # obs = env.reset().observation

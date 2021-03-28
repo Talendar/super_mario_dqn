@@ -71,6 +71,7 @@ def human_play(env, num_episodes):
     for episode in range(num_episodes):
         timestep = env.reset()
         episode_data = {"first": timestep, "mid": []}
+        episode_reward = 0.0
 
         # Rendering 1st frame:
         _render(display, screen_img=env.render(mode="rgb_array"))
@@ -80,12 +81,15 @@ def human_play(env, num_episodes):
             # Acting:
             action = _get_action()
             timestep = env.step(action)
+
             episode_data["mid"].append((action, timestep))
+            episode_reward += timestep.reward
 
             # Rendering:
             _render(display, screen_img=env.render(mode="rgb_array"))
             clock.tick(15)
 
         data.append(episode_data)
+        print(f"Episode reward: {episode_reward}")
 
     return data
