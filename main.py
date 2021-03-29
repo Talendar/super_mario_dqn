@@ -48,7 +48,7 @@ def make_env():
                             black_background=True,
                             in_game_score_weight=0.02,
                             movement_type="right_only",
-                            world_and_level=(2, 3),
+                            world_and_level=(2, 4),
                             idle_frames_threshold=1000)
 
 
@@ -75,7 +75,7 @@ def train(network=None, expert_data_path=None):
                      min_replay_size=1000,
                      max_replay_size=int(1e5),
                      target_update_period=2500,
-                     epsilon=tf.Variable(0.0125),
+                     epsilon=tf.Variable(0.025),
                      n_step=10,
                      discount=0.9,
                      expert_data=expert_data)
@@ -83,10 +83,10 @@ def train(network=None, expert_data_path=None):
     loop = EnvironmentLoop(environment=env,
                            actor=agent,
                            module2save=network)
-    reward_history = loop.run(num_steps=int(1e5),
+    reward_history = loop.run(num_steps=int(1e6),
                               render=True,
                               checkpoint=True,
-                              checkpoint_freq=10)
+                              checkpoint_freq=15)
 
     avg_hist = [np.mean(reward_history[i:(i+50)])
                 for i in range(len(reward_history) - 50)]
@@ -189,8 +189,8 @@ def find_best_policy(folder_path):
 
 if __name__ == "__main__":
     # collect_data_from_human()
-    # policy_path = find_best_policy("checkpoints/checkpoints_2021-03-28-22-14-08")
-    policy_path = "checkpoints/best_policies/w2_lv3/w2_lv3_completed_r3595"
+    # policy_path = find_best_policy("checkpoints/checkpoints_2021-03-29-01-39-17")
+    policy_path = "checkpoints/best_policies/w2_lv4/w2_lv4_completed_r2182"
 
     policy_network = make_dqn(make_env().action_spec().num_values)
     restore_module(base_module=policy_network, save_path=policy_path)
