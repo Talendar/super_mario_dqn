@@ -48,7 +48,7 @@ def make_env():
                             black_background=True,
                             in_game_score_weight=0.02,
                             movement_type="right_only",
-                            world_and_level=(1, 3),
+                            world_and_level=(2, 3),
                             idle_frames_threshold=1000)
 
 
@@ -75,7 +75,7 @@ def train(network=None, expert_data_path=None):
                      min_replay_size=1000,
                      max_replay_size=int(1e5),
                      target_update_period=2500,
-                     epsilon=tf.Variable(0.025),
+                     epsilon=tf.Variable(0.0125),
                      n_step=10,
                      discount=0.9,
                      expert_data=expert_data)
@@ -108,7 +108,7 @@ def eval_policy(policy, num_episodes, fps=0, epsilon_greedy=0.025):
     env = make_env()
     env.reset()
     env.render()
-    input("\nPress any key to continue.")
+    input("\nPress [ENTER] to continue.")
 
     for episode in range(num_episodes):
         obs = env.reset().observation
@@ -189,12 +189,12 @@ def find_best_policy(folder_path):
 
 if __name__ == "__main__":
     # collect_data_from_human()
-    # save_path = find_best_policy("checkpoints/history/w1_lv3_checkpoints2")
-    save_path = "checkpoints/best_policies/w1_lv3/w1_lv3_completed_r3018"
+    # policy_path = find_best_policy("checkpoints/checkpoints_2021-03-28-22-14-08")
+    policy_path = "checkpoints/best_policies/w2_lv3/w2_lv3_completed_r3595"
 
     policy_network = make_dqn(make_env().action_spec().num_values)
-    restore_module(base_module=policy_network, save_path=save_path)
-    print(f"\nUsing policy checkpoint from: {save_path}")
+    restore_module(base_module=policy_network, save_path=policy_path)
+    print(f"\nUsing policy checkpoint from: {policy_path}")
 
     # train(policy_network, expert_data_path=None)
     eval_policy(policy_network, num_episodes=3, fps=60, epsilon_greedy=0)
