@@ -38,6 +38,7 @@ class MarioEnvironment(dm_env.Environment):
                  movement_type: str = "simple",
                  world_and_level: Optional[Tuple[int, int]] = None,
                  idle_frames_threshold: Optional[int] = 1250,
+                 colorful_rendering: bool = True,
     ) -> None:
         assert stack_mode in ("first_and_last", "all")
         self._stack_mode = stack_mode
@@ -48,6 +49,15 @@ class MarioEnvironment(dm_env.Environment):
         self._smb_env = gym_super_mario_bros.make(env_name)
         self._smb_env = JoypadSpace(self._smb_env,
                                     MOVEMENTS_TYPES[movement_type])
+
+        self._actions_queue = []
+        self._colorful_env = None
+        if (grayscale or black_background) and colorful_rendering:
+            self._colorful_env = gym_super_mario_bros.make(
+                "SuperMarioBros-%d-%d-v0" % world_and_level
+            )
+            self._colorful_env = JoypadSpace(self._colorful_env,
+                                             MOVEMENTS_TYPES[movement_type])
 
         self._stack_func = stack_func
         self._grayscale = grayscale
@@ -71,6 +81,11 @@ class MarioEnvironment(dm_env.Environment):
         self._last_score = 0
         self._last_x = 40
         self._idle_counter = 0
+
+        self._actions_queue = []
+        if self._colorful_env is not None:
+            self._colorful_env.reset()
+
         return dm_env.restart(self.step(0).observation)
 
     def _is_idle(self, info):
@@ -91,6 +106,7 @@ class MarioEnvironment(dm_env.Environment):
     def step(self, action) -> TimeStep:
         action = int(action)
         initial_img, total_reward, done, info = self._smb_env.step(action)
+        self._actions_queue.append(action)
         done = done or self._is_idle(info)
 
         # Skipping frames:
@@ -101,6 +117,7 @@ class MarioEnvironment(dm_env.Environment):
                 skip_count += 1
                 if not done:
                     last_img, reward, done, info = self._smb_env.step(action)
+                    self._actions_queue.append(action)
                     done = done or self._is_idle(info)
                     total_reward += reward
                 else:
@@ -145,7 +162,14 @@ class MarioEnvironment(dm_env.Environment):
         return img.astype(np.float32, copy=False)
 
     def render(self, mode="human"):
-        return self._smb_env.render(mode)
+        if self._colorful_env is None:
+            return self._smb_env.render(mode)
+
+        for action in self._actions_queue:
+            self._colorful_env.step(action)
+
+        self._actions_queue = []
+        return self._colorful_env.render(mode)
 
     def plot_obs(self, obs):
         plt.imshow(obs, cmap="gray" if self._grayscale else None)
