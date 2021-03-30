@@ -13,7 +13,6 @@ from mario_env import MarioEnvironment
 from utils.env_loop import EnvironmentLoop
 from utils.utils import restore_module
 import time
-import trfl
 from datetime import datetime
 import pickle
 
@@ -22,6 +21,7 @@ from dqn.agent import DQN as DQNAgent
 from pathlib import Path
 import re
 import ray
+import matplotlib.pyplot as plt
 
 
 def make_dqn(num_actions: int):
@@ -48,7 +48,7 @@ def make_env():
                             black_background=True,
                             in_game_score_weight=0.02,
                             movement_type="right_only",
-                            world_and_level=(2, 4),
+                            world_and_level=(3, 1),
                             idle_frames_threshold=1000)
 
 
@@ -70,12 +70,12 @@ def train(network=None, expert_data_path=None):
     agent = DQNAgent(environment_spec=env_spec,
                      network=network,
                      batch_size=32,
-                     learning_rate=1e-4,
+                     learning_rate=6.25e-5,
                      logger=loggers.NoOpLogger(),
-                     min_replay_size=1000,
-                     max_replay_size=int(1e5),
+                     min_replay_size=2500,
+                     max_replay_size=int(2e5),
                      target_update_period=2500,
-                     epsilon=tf.Variable(0.025),
+                     epsilon=tf.Variable(0.015),
                      n_step=10,
                      discount=0.9,
                      expert_data=expert_data)
@@ -83,10 +83,10 @@ def train(network=None, expert_data_path=None):
     loop = EnvironmentLoop(environment=env,
                            actor=agent,
                            module2save=network)
-    reward_history = loop.run(num_steps=int(1e6),
+    reward_history = loop.run(num_steps=int(1e5),
                               render=True,
                               checkpoint=True,
-                              checkpoint_freq=15)
+                              checkpoint_freq=10)
 
     avg_hist = [np.mean(reward_history[i:(i+50)])
                 for i in range(len(reward_history) - 50)]
@@ -100,11 +100,6 @@ def train(network=None, expert_data_path=None):
 def eval_policy(policy, num_episodes, fps=0, epsilon_greedy=0.025):
     # TODO: plot Q values
     # TODO: Jacobian matrix (sensitiviy to the different regions of the input)
-    policy = snt.Sequential([
-        policy,
-        lambda q: trfl.epsilon_greedy(q, epsilon=epsilon_greedy).sample(),
-    ])
-
     env = make_env()
     env.reset()
     env.render()
@@ -116,13 +111,43 @@ def eval_policy(policy, num_episodes, fps=0, epsilon_greedy=0.025):
 
         done = False
         while not done:
+            # Rendering:
             env.render()
             time.sleep(1 / fps)
 
-            action = policy(tf.expand_dims(obs, axis=0))[0]
-            timestep_obj = env.step(action)
+            # Q-values:
+            obs = tf.Variable(tf.expand_dims(obs, axis=0))
+            with tf.GradientTape() as tape:
+                tape.watch(obs)
+                q_values = policy(obs)[0]
+                max_q = q_values[tf.argmax(q_values)]
 
+            # gradients = tape.gradient(max_q, obs)[0, :, :, -1]
+            # gradients = tf.abs(gradients)
+            # gradients = tf.math.divide(tf.subtract(gradients,
+            #                                        tf.reduce_min(gradients)),
+            #                            tf.subtract(tf.reduce_max(gradients),
+            #                                        tf.reduce_min(gradients)))
+            #
+            # input_img = obs[0, :, :, -1]
+            # assert gradients.shape == input_img.shape
+            # relevance_img = tf.stack([gradients, input_img, input_img], axis=-1)
+            #
+            # plt.imshow(relevance_img)
+            # plt.show()
+
+            # Random action:
+            if np.random.uniform(low=0, high=1) < epsilon_greedy:
+                action = np.random.randint(low=0,
+                                           high=env.action_spec().num_values)
+            # Greedy policy:
+            else:
+                action = tf.argmax(q_values)
+
+            # Environment step:
+            timestep_obj = env.step(action)
             obs = timestep_obj.observation
+
             episode_reward += timestep_obj.reward
             done = timestep_obj.last()
 
@@ -189,8 +214,8 @@ def find_best_policy(folder_path):
 
 if __name__ == "__main__":
     # collect_data_from_human()
-    # policy_path = find_best_policy("checkpoints/checkpoints_2021-03-29-01-39-17")
-    policy_path = "checkpoints/best_policies/w2_lv4/w2_lv4_completed_r2182"
+    # policy_path = find_best_policy("checkpoints/checkpoints_2021-03-29-20-36-19")
+    policy_path = "checkpoints/best_policies/w3_lv1/w3_lv1_completed_r3175"
 
     policy_network = make_dqn(make_env().action_spec().num_values)
     restore_module(base_module=policy_network, save_path=policy_path)
