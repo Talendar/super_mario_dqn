@@ -9,11 +9,11 @@ Current beaten levels:
   - [x] Level 2
   - [x] Level 3
   - [x] Level 4
-- [ ] World 2
+- [x] World 2
   - [x] Level 1 
   - [x] Level 2
   - [x] Level 3
-  - [ ] Level 4
+  - [x] Level 4
 - [ ] World 3
   - [ ] Level 1 
   - [ ] Level 2
