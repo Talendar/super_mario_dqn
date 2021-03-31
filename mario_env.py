@@ -104,6 +104,15 @@ class MarioEnvironment(dm_env.Environment):
         return False
 
     def step(self, action) -> TimeStep:
+        """ Updates the environment's state. """
+        # NOTE:
+        # The gym_super_mario_bros environment reuses the numpy array it
+        # returns as observation. When stacking observations, this might be
+        # a source of bugs (all observations in the stack might be representing
+        # the same, final frame!), so always copy the arrays when doing that.
+        # The observation arrays are already being copied inside
+        # `self._preprocess_img`, so no explicit copying is needed here.
+
         action = int(action)
         initial_img, total_reward, done, info = self._smb_env.step(action)
         self._actions_queue.append(action)
@@ -129,7 +138,7 @@ class MarioEnvironment(dm_env.Environment):
             obs = self._stack_func(imgs)
         # Single frame:
         else:
-            obs = initial_img
+            obs = self._process_img(initial_img)
 
         score_diff = info["score"] - self._last_score
         self._last_score = info["score"]
@@ -159,30 +168,33 @@ class MarioEnvironment(dm_env.Environment):
         if self._grayscale:
             img = img @ RGB2GRAY_COEFFICIENTS
 
-        return img.astype(np.float32, copy=False)
+        return img.astype(np.float32, copy=True)
 
-    def render(self, mode="human"):
+    def render(self, mode="human", return_all_imgs=False):
+        if return_all_imgs:
+            assert self._colorful_env is not None and mode == "rgb_array", (
+                "The option 'return_all_imgs' is valid only when using "
+                "colorful rendering and rgb array mode!"
+            )
+
+        # Regular rendering:
         if self._colorful_env is None:
             return self._smb_env.render(mode)
 
+        # Colorful rendering:
+        img_list = []
         for action in self._actions_queue:
             self._colorful_env.step(action)
+            if return_all_imgs:
+                # NOTE: make sure a copy of the returned rgb array is made!
+                img_list.append(self._colorful_env.render(mode).copy())
 
         self._actions_queue = []
-        return self._colorful_env.render(mode)
+        return img_list if return_all_imgs else self._colorful_env.render(mode)
 
     def plot_obs(self, obs):
         plt.imshow(obs, cmap="gray" if self._grayscale else None)
         plt.show()
-        # if self._skip_frames == 0:
-        #     plt.imshow(obs, cmap="gray" if self._grayscale else None)
-        #     plt.show()
-        # else:
-        #     img1, img2 = obs[:, :, 0], obs[:, :, 1]
-        #     separator = np.zeros(shape=[img1.shape[0], 10])
-        #     concatenated_img = np.hstack([img1, separator, img2])
-        #     plt.imshow(concatenated_img, cmap="gray")
-        #     plt.show()
 
     def close(self):
         self._smb_env.close()

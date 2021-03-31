@@ -41,9 +41,9 @@ def make_env(colorful_rendering: bool = False):
                             stack_mode="all",
                             grayscale=True,
                             black_background=True,
-                            in_game_score_weight=0.05,  # todo: change to 0.02
+                            in_game_score_weight=0.02,
                             movement_type="right_only",
-                            world_and_level=(3, 3),
+                            world_and_level=(3, 4),
                             idle_frames_threshold=1250,
                             colorful_rendering=colorful_rendering)
 
@@ -66,23 +66,23 @@ def train(network=None, expert_data_path=None):
     agent = DQNAgent(environment_spec=env_spec,
                      network=network,
                      batch_size=32,
-                     learning_rate=1e-4,
+                     learning_rate=6.25e-5,
                      logger=loggers.NoOpLogger(),
-                     min_replay_size=1500,
+                     min_replay_size=2500,
                      max_replay_size=int(2e5),
                      target_update_period=2500,
-                     epsilon=tf.Variable(0.025),
-                     n_step=20,     # todo: change to 10
-                     discount=0.95,  # todo: change to 0.9
+                     epsilon=tf.Variable(0.02),
+                     n_step=10,
+                     discount=0.9,
                      expert_data=expert_data)
 
     loop = EnvironmentLoop(environment=env,
                            actor=agent,
                            module2save=network)
-    reward_history = loop.run(num_steps=int(1e5),
+    reward_history = loop.run(num_steps=int(1e6),
                               render=True,
                               checkpoint=True,
-                              checkpoint_freq=10)
+                              checkpoint_freq=15)
 
     avg_hist = [np.mean(reward_history[i:(i+50)])
                 for i in range(len(reward_history) - 50)]
@@ -96,21 +96,22 @@ def train(network=None, expert_data_path=None):
 if __name__ == "__main__":
     # collect_data_from_human()
     # policy_path = find_best_policy(
-    #     folder_path="checkpoints/checkpoints_2021-03-30-12-53-53",
+    #     folder_path="checkpoints/checkpoints_2021-03-30-23-02-09",
     #     make_env=make_env,
     #     make_dqn=make_dqn,
     # )
-    policy_path = "checkpoints/best_policies/w3_lv3/w3_lv3_completed_r2493"
+    policy_path = "checkpoints/w3_lv4_r1590"
 
     policy_network = make_dqn(make_env().action_spec().num_values)
     restore_module(base_module=policy_network, save_path=policy_path)
     print(f"\nUsing policy checkpoint from: {policy_path}")
 
-    # train(policy_network, expert_data_path=None)
+    train(policy_network, expert_data_path=None)
 
     input("\nPress [ENTER] to continue.")
     visualize_policy(policy_network, env=make_env(colorful_rendering=True),
-                     num_episodes=3, fps=60, epsilon_greedy=0)
+                     num_episodes=1, fps=120, epsilon_greedy=0,
+                     plot_extras=True, save_video=False)
 
     # DEBUG
     # env = make_env()

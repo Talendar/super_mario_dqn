@@ -5,17 +5,14 @@ TODO
 import os
 import pickle
 import re
-import time
 from datetime import datetime
-from typing import Tuple, Callable
 from pathlib import Path
+from typing import Callable, Tuple
 
 import numpy as np
-import tensorflow as tf
-import sonnet as snt
 import ray
-import pygame
-import matplotlib.pyplot as plt
+import sonnet as snt
+import tensorflow as tf
 
 import expert_demonstration
 
@@ -75,76 +72,6 @@ def make_weighted_avg(weights):
         return array_sum / np.sum(weights)
 
     return weighted_avg
-
-
-def _get_saliency_map(input_img, gradients, convert_to_uint8: bool = True):
-    assert input_img.shape == gradients.shape
-    gradients = tf.abs(gradients)
-    gradients = tf.math.divide(tf.subtract(gradients,
-                                           tf.reduce_min(gradients)),
-                               tf.subtract(tf.reduce_max(gradients),
-                                           tf.reduce_min(gradients)))
-    saliency_map = tf.stack([gradients, input_img, input_img], axis=-1)
-    return (saliency_map if not convert_to_uint8
-            else tf.cast(tf.multiply(saliency_map, 255), dtype=tf.uint8))
-
-
-def _get_q_values_plot(q_values):
-    plt.figure()
-    plt.bar(x=range(len(q_values)), height=q_values)
-    plt.show()
-
-
-def visualize_policy(policy, env, num_episodes: int,
-                     fps: int = 0, epsilon_greedy: float = 0.025,):
-    # TODO: plot Q values
-    # TODO: Jacobian matrix (sensitiviy to the different regions of the input)
-    # display = pygame.display.set_mode((960, 540))
-    # clock = pygame.time.Clock()
-
-    env.reset()
-    for episode in range(num_episodes):
-        obs = env.reset().observation
-        episode_reward = 0.0
-
-        done = False
-        while not done:
-            # Rendering:
-            # env_rgb = env.render(mode="rgb_array")
-            env.render()
-            time.sleep(1 / fps)
-
-            # Q-values:
-            obs = tf.Variable(tf.expand_dims(obs, axis=0))
-            with tf.GradientTape() as tape:
-                tape.watch(obs)
-                q_values = policy(obs)[0]
-                max_q = q_values[tf.argmax(q_values)]
-
-            # Plotting saliency map and Q-values:
-            saliency_map = _get_saliency_map(
-                input_img=obs[0, :, :, -1],
-                gradients=tape.gradient(max_q, obs)[0, :, :, -1],
-                convert_to_uint8=True,
-            )
-            # _get_q_values_plot(q_values)
-
-            # Random action:
-            if np.random.uniform(low=0, high=1) < epsilon_greedy:
-                action = np.random.randint(low=0,
-                                           high=env.action_spec().num_values)
-            # Greedy policy:
-            else:
-                action = tf.argmax(q_values)
-
-            # Environment step:
-            timestep_obj = env.step(action)
-            obs = timestep_obj.observation
-
-            episode_reward += timestep_obj.reward
-            done = timestep_obj.last()
-
-        print(f"Episode reward: {episode_reward}")
 
 
 def find_best_policy(folder_path: str,
