@@ -12,6 +12,7 @@ import numpy as np
 from mario_env import MarioEnvironment
 from utils.env_loop import EnvironmentLoop
 from utils.utils import restore_module
+from utils.utils import collect_data_from_human
 import pickle
 
 from dqn.agent import DQN as DQNAgent
@@ -41,9 +42,9 @@ def make_env(colorful_rendering: bool = False):
                             stack_mode="all",
                             grayscale=True,
                             black_background=True,
-                            in_game_score_weight=0.02,
+                            in_game_score_weight=0.025,
                             movement_type="right_only",
-                            world_and_level=(3, 4),
+                            world_and_level=(4, 1),
                             idle_frames_threshold=1250,
                             colorful_rendering=colorful_rendering)
 
@@ -66,14 +67,14 @@ def train(network=None, expert_data_path=None):
     agent = DQNAgent(environment_spec=env_spec,
                      network=network,
                      batch_size=32,
-                     learning_rate=6.25e-5,
+                     learning_rate=1e-4,
                      logger=loggers.NoOpLogger(),
-                     min_replay_size=2500,
-                     max_replay_size=int(2e5),
+                     min_replay_size=500,
+                     max_replay_size=int(1e5),
                      target_update_period=2500,
-                     epsilon=tf.Variable(0.02),
-                     n_step=10,
-                     discount=0.9,
+                     epsilon=tf.Variable(0.025),
+                     n_step=20,      # todo: 10
+                     discount=0.96,  # todo: 0.9
                      expert_data=expert_data)
 
     loop = EnvironmentLoop(environment=env,
@@ -94,13 +95,15 @@ def train(network=None, expert_data_path=None):
 
 
 if __name__ == "__main__":
-    # collect_data_from_human()
+    # collect_data_from_human(env=make_env(colorful_rendering=True),
+    #                         num_episodes=25)
+
     # policy_path = find_best_policy(
-    #     folder_path="checkpoints/checkpoints_2021-03-30-23-02-09",
+    #     folder_path="checkpoints/checkpoints_2021-04-03-01-18-33/",
     #     make_env=make_env,
     #     make_dqn=make_dqn,
     # )
-    policy_path = "checkpoints/w3_lv4_r1590"
+    policy_path = "checkpoints/best_policies/w3_lv2/w3_lv2_completed_r3298"
 
     policy_network = make_dqn(make_env().action_spec().num_values)
     restore_module(base_module=policy_network, save_path=policy_path)

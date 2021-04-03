@@ -120,8 +120,8 @@ def find_best_policy(folder_path: str,
     return best_policy_path
 
 
-def collect_data_from_human(env):
-    data = expert_demonstration.human_play(env, num_episodes=20)
+def collect_data_from_human(env, num_episodes=10):
+    data = expert_demonstration.human_play(env, num_episodes=num_episodes)
 
     date_and_time = datetime.today().strftime('%Y-%m-%d-%H-%M-%S')
     save_path = f"./human_data/data_{date_and_time}.pkl"
