@@ -1,8 +1,12 @@
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
+
+import tensorflow as tf
+tf.get_logger().setLevel("ERROR")
 
 import acme
-import tensorflow as tf
 import sonnet as snt
 from acme.tf.networks import duelling
 from acme.utils import loggers
@@ -99,17 +103,17 @@ if __name__ == "__main__":
     #                         num_episodes=25)
 
     # policy_path = find_best_policy(
-    #     folder_path="checkpoints/checkpoints_2021-04-03-01-18-33/",
+    #     folder_path="checkpoints/checkpoints_2021-04-03-02-02-02/",
     #     make_env=make_env,
     #     make_dqn=make_dqn,
     # )
-    policy_path = "checkpoints/best_policies/w3_lv2/w3_lv2_completed_r3298"
+    policy_path = "checkpoints/best_policies/w4_lv1/w4_lv1_completed_r3537"
 
     policy_network = make_dqn(make_env().action_spec().num_values)
     restore_module(base_module=policy_network, save_path=policy_path)
     print(f"\nUsing policy checkpoint from: {policy_path}")
 
-    train(policy_network, expert_data_path=None)
+    # train(policy_network, expert_data_path=None)
 
     input("\nPress [ENTER] to continue.")
     visualize_policy(policy_network, env=make_env(colorful_rendering=True),
