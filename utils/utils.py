@@ -117,7 +117,10 @@ def find_best_policy(folder_path: str,
     print(f"Best policy found at: {best_policy_path}")
     print(f"Best policy total reward: {best_policy_reward}")
 
-    return best_policy_path
+    policies_rewards = {fn: reward for fn, reward in zip(files, rewards)}
+    policies_rewards = {k: v for k, v in sorted(policies_rewards.items(),
+                                                key=lambda item: item[1])}
+    return best_policy_path, policies_rewards
 
 
 def collect_data_from_human(env, num_episodes=10):
