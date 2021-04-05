@@ -48,7 +48,7 @@ def make_env(colorful_rendering: bool = False):
                             black_background=True,
                             in_game_score_weight=0.025,
                             movement_type="right_only",
-                            world_and_level=(5, 1),
+                            world_and_level=(5, 2),
                             idle_frames_threshold=1250,
                             colorful_rendering=colorful_rendering)
 
@@ -74,7 +74,7 @@ def train(network=None, expert_data_path=None):
                      learning_rate=6.25e-5,
                      logger=loggers.NoOpLogger(),
                      min_replay_size=1000,
-                     max_replay_size=int(1e5),
+                     max_replay_size=int(75000),
                      target_update_period=2500,
                      epsilon=tf.Variable(0.015),
                      n_step=20,
@@ -84,7 +84,7 @@ def train(network=None, expert_data_path=None):
     loop = EnvironmentLoop(environment=env,
                            actor=agent,
                            module2save=network)
-    reward_history = loop.run(num_steps=int(5e4),
+    reward_history = loop.run(num_steps=int(1e6),
                               render=True,
                               checkpoint=True,
                               checkpoint_freq=15)
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     #                         num_episodes=20)
 
     # policy_path, policies_rewards = find_best_policy(
-    #     folder_path="checkpoints/checkpoints_2021-04-04-13-42-54/",
+    #     folder_path="checkpoints/checkpoints_2021-04-05-00-06-39/",
     #     make_env=make_env,
     #     make_dqn=make_dqn,
     # )
@@ -111,7 +111,7 @@ if __name__ == "__main__":
     # for fn, reward in policies_rewards.items():
     #     print(f"[Reward: {reward}] {fn}")
 
-    policy_path = "checkpoints/best_policies/w5_lv1/w5_lv1_completed_r3102"
+    policy_path = "checkpoints/best_policies/w5_lv2/w5_lv2_completed_r3223"
 
     policy_network = make_dqn(make_env().action_spec().num_values)
     restore_module(base_module=policy_network, save_path=policy_path)
