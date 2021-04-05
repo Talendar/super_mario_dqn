@@ -48,7 +48,7 @@ def make_env(colorful_rendering: bool = False):
                             black_background=True,
                             in_game_score_weight=0.025,
                             movement_type="right_only",
-                            world_and_level=(5, 2),
+                            world_and_level=(5, 4),
                             idle_frames_threshold=1250,
                             colorful_rendering=colorful_rendering)
 
@@ -71,12 +71,12 @@ def train(network=None, expert_data_path=None):
     agent = DQNAgent(environment_spec=env_spec,
                      network=network,
                      batch_size=32,
-                     learning_rate=6.25e-5,
+                     learning_rate=1e-4,
                      logger=loggers.NoOpLogger(),
                      min_replay_size=1000,
-                     max_replay_size=int(75000),
+                     max_replay_size=int(1e5),
                      target_update_period=2500,
-                     epsilon=tf.Variable(0.015),
+                     epsilon=tf.Variable(0.025),
                      n_step=20,
                      discount=0.97,
                      expert_data=expert_data)
@@ -84,7 +84,7 @@ def train(network=None, expert_data_path=None):
     loop = EnvironmentLoop(environment=env,
                            actor=agent,
                            module2save=network)
-    reward_history = loop.run(num_steps=int(1e6),
+    reward_history = loop.run(num_steps=int(2e5),
                               render=True,
                               checkpoint=True,
                               checkpoint_freq=15)
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     #                         num_episodes=20)
 
     # policy_path, policies_rewards = find_best_policy(
-    #     folder_path="checkpoints/checkpoints_2021-04-05-00-06-39/",
+    #     folder_path="checkpoints/checkpoints_2021-04-05-16-05-48/",
     #     make_env=make_env,
     #     make_dqn=make_dqn,
     # )
@@ -111,13 +111,13 @@ if __name__ == "__main__":
     # for fn, reward in policies_rewards.items():
     #     print(f"[Reward: {reward}] {fn}")
 
-    policy_path = "checkpoints/best_policies/w5_lv2/w5_lv2_completed_r3223"
+    policy_path = "checkpoints/w5_lv4_r1702"
 
     policy_network = make_dqn(make_env().action_spec().num_values)
     restore_module(base_module=policy_network, save_path=policy_path)
     print(f"\nUsing policy checkpoint from: {policy_path}")
 
-    # train(policy_network, expert_data_path=None)
+    train(policy_network, expert_data_path=None)
 
     input("\nPress [ENTER] to continue.")
     visualize_policy(policy_network, env=make_env(colorful_rendering=True),
