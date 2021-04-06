@@ -103,7 +103,7 @@ if __name__ == "__main__":
     #                         num_episodes=20)
 
     # policy_path, policies_rewards = find_best_policy(
-    #     folder_path="checkpoints/checkpoints_2021-04-05-16-05-48/",
+    #     folder_path="checkpoints/checkpoints_2021-04-05-18-51-19/",
     #     make_env=make_env,
     #     make_dqn=make_dqn,
     # )
@@ -111,13 +111,13 @@ if __name__ == "__main__":
     # for fn, reward in policies_rewards.items():
     #     print(f"[Reward: {reward}] {fn}")
 
-    policy_path = "checkpoints/w5_lv4_r1702"
+    policy_path = "checkpoints/best_policies/w5_lv4/w5_lv4_completed_r2175"
 
     policy_network = make_dqn(make_env().action_spec().num_values)
     restore_module(base_module=policy_network, save_path=policy_path)
     print(f"\nUsing policy checkpoint from: {policy_path}")
 
-    train(policy_network, expert_data_path=None)
+    # train(policy_network, expert_data_path=None)
 
     input("\nPress [ENTER] to continue.")
     visualize_policy(policy_network, env=make_env(colorful_rendering=True),
