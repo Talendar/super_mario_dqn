@@ -30,7 +30,7 @@ Current beaten levels:
   - [x] Level 3
   - [x] Level 4
 - [ ] World 6
-  - [ ] Level 1 
+  - [x] Level 1 
   - [ ] Level 2
   - [ ] Level 3
   - [ ] Level 4
