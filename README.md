@@ -1,6 +1,6 @@
 ## Playing Super Mario Bros with Deep Q Learning
 
-Work in progress.
+Work in progress. Check out the [video](https://www.youtube.com/watch?v=9nqwVYCxQls&t=903s) I made about this project.
 
 Current beaten levels:
 
